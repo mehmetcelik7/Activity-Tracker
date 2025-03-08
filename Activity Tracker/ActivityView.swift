@@ -86,7 +86,7 @@ struct ActivityView: View {
                 
                 List(activities) {
                     activity in
-                    Text(activity.name)
+                    ActivityRow(activity: activity)
                         .onTapGesture {
                             withAnimation {
                                 currentActivity = activity
@@ -95,6 +95,12 @@ struct ActivityView: View {
                         }
                 }.listStyle(.plain)
                     .scrollIndicators(.hidden)
+                
+                TextField("Enter new activity",text: $newName)
+                    .padding()
+                    .background(Color.blue.gradient.opacity(0.3))
+                    .clipShape(.rect(cornerRadius: 10))
+                    .shadow(color: .gray, radius: 2, x: 0,y: 2)
                 
                 if let currentActivity {
                     Slider(value: $hoursPerDay, in: 0...maxHoursOfSelected, step: step)
@@ -113,7 +119,18 @@ struct ActivityView: View {
     }
     
     private func addActivity() {
-        //TODO: Implement
+        if newName.count > 2 && !activities.contains(where: { $0.name.lowercased() == newName.lowercased()}) {
+            
+            let activity = Activity(name: newName, hoursPerDay: hoursPerDay)
+            
+            context
+                .insert(activity)
+            
+            newName = ""
+            
+            currentActivity = activity
+            
+        }
     }
     private func deleteActivity(at offsets: IndexSet) {
         //TODO: Implement
