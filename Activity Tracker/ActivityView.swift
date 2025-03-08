@@ -14,7 +14,7 @@ struct ActivityView: View {
     var activities: [Activity]
     @Environment(\.modelContext) private var context
 
-    @State private var newName: String = " "
+    @State private var newName: String = ""
     @State private var hoursPerDay: Double = 0
     @State private var currentActivity: Activity? = nil
     @State private var selectCount: Int?
@@ -43,69 +43,80 @@ struct ActivityView: View {
             VStack {
                 
                
-           
-                Chart {
-                    
-                    let isSelected: Bool = true
-                    
-                    ForEach(activities) {
-                        activities in
+                if activities.isEmpty {
+                    ContentUnavailableView("Enter an Activity",systemImage: "list.dash")
+                }else{
+                    Chart {
                         
-                        SectorMark(angle: .value("Activities",activities.hoursPerDay),
-                                   innerRadius: .ratio(0.6),
-                                   outerRadius: isSelected ? 1.05 : 0.95,
-                                   angularInset: 1)
-                        .foregroundStyle(Color.red)
-                        .cornerRadius(5)
+                        
+                        ForEach(activities) {
+                            activity in
+                            let isSelected: Bool = currentActivity?.name == activity.name
+
+                            SectorMark(angle: .value("Activities",activity.hoursPerDay),
+                                       innerRadius: .ratio(0.6),
+                                       outerRadius: .ratio(isSelected ? 1.05 : 0.95),
+                                       angularInset: 1)
+                            .foregroundStyle(by: .value("activity", activity.name))
+                            .cornerRadius(5)
+                            .opacity(isSelected ? 1 : 0.7)
+                        }
+                        
                     }
-                    
-                    
-                    SectorMark(angle: .value("value",5),
-                               innerRadius: .ratio(0.6),
-                               outerRadius: .ratio(0.95),
-                               angularInset: 1)
-                    .foregroundStyle(Color.red)
-                    .cornerRadius(5)
-                    
-                    SectorMark(angle: .value("value",3),
-                               innerRadius: .ratio(0.6),
-                               outerRadius: .ratio(1.05),
-                               angularInset: 1)
-                    .foregroundStyle(Color.blue)
-
-                    
-                    
-                    SectorMark(angle: .value("value",17),
-                               innerRadius: .ratio(0.6),
-                               outerRadius: .ratio(0.95),
-                               angularInset: 1)
-                    .foregroundStyle(Color.yellow)
-
-                }
-                .chartAngleSelection(value: $selectCount)
-                
-                List(activities) {
-                    activity in
-                    ActivityRow(activity: activity)
-                        .onTapGesture {
-                            withAnimation {
-                                currentActivity = activity
-                                hoursPerDay = activity.hoursPerDay
+                    .chartAngleSelection(value: $selectCount)
+                    .chartBackground{ _ in
+                        VStack{
+                            Image(systemName: "figure.walk")
+                                .imageScale(.large)
+                                .foregroundStyle(.blue)
+                            
+                            if let currentActivity {
+                                let truncateName = String(currentActivity.name.prefix(15))
+                                
+                                Text(truncateName)
+                                    
                             }
                         }
-                }.listStyle(.plain)
-                    .scrollIndicators(.hidden)
+                        
+                    }
+                }
+              
+                
+                List {
+                    ForEach(activities) {
+                        activity in
+                        ActivityRow(activity: activity)
+                            .contentShape(Rectangle())
+                            .listRowBackground(
+                                currentActivity?.name == activity.name ? Color.blue.opacity(0.3) : Color.clear
+                            )
+                            .onTapGesture {
+                                withAnimation {
+                                    currentActivity = activity
+                                    hoursPerDay = activity.hoursPerDay
+                                }
+                            }
+                    }
+                    .onDelete(perform: deleteActivity)
+                   
+                }
+                .listStyle(.plain)
+                .scrollIndicators(.hidden)
                 
                 TextField("Enter new activity",text: $newName)
                     .padding()
                     .background(Color.blue.gradient.opacity(0.3))
                     .clipShape(.rect(cornerRadius: 10))
-                    .shadow(color: .gray, radius: 2, x: 0,y: 2)
+            
                 
                 if let currentActivity {
                     Slider(value: $hoursPerDay, in: 0...maxHoursOfSelected, step: step)
                         .onChange(of: hoursPerDay) {   oldValue, newValue in
-                            //TODO:
+                          
+                            if let index = self.activities.firstIndex(where: { $0.name == currentActivity.name }) {
+                                activities[index].hoursPerDay = newValue
+                            }
+                            
                         }
                 }
                 Button("Add") {
@@ -115,12 +126,26 @@ struct ActivityView: View {
             }
             .padding()
             .navigationTitle("Activity Tracker")
+            .toolbar { EditButton()
+                    .onChange(of: selectCount) { oldValue, newValue in
+                        
+                        if let newValue {
+                            withAnimation {
+                                getSelected(value: newValue)
+                            }
+                        }
+                        
+                    }
+                
+            }
         }
     }
     
     private func addActivity() {
         if newName.count > 2 && !activities.contains(where: { $0.name.lowercased() == newName.lowercased()}) {
             
+            
+            hoursPerDay = 0
             let activity = Activity(name: newName, hoursPerDay: hoursPerDay)
             
             context
@@ -133,8 +158,24 @@ struct ActivityView: View {
         }
     }
     private func deleteActivity(at offsets: IndexSet) {
-        //TODO: Implement
+
+        offsets
+            .forEach { index in
+                let activity = activities[index]
+                context.delete(activity)
+            }
     }
+    
+    private func getSelected(value: Int) {
+
+        var cumulativeTotal = 0.0
+        if let activity = activities.first(where: { cumulativeTotal += $0.hoursPerDay;
+            return Int(cumulativeTotal) >= value
+        }) {
+            currentActivity = activity
+        }
+    }
+    
 }
 
 #Preview {
