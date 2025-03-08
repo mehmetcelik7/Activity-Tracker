@@ -6,12 +6,13 @@
 //
 
 import SwiftUI
+import SwiftData
 
 @main
 struct Activity_TrackerApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
-        }
+            ActivityView()
+        }.modelContainer(for: Activity.self)
     }
 }
